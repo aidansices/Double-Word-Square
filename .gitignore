@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+
+# word lists are big and not ours to redistribute
+dictionary.txt
+words.txt
+twl*.txt
+sowpods.txt
+collins.txt
+enable1.txt
