@@ -96,6 +96,8 @@ python3 double_word_square.py -d twl06.txt --count-only --condition a
 |---|---|
 | `-d, --dict FILE` | word list (repeatable) |
 | `--dict3 FILE` | separate list for the 3-letter intermediates |
+| `--common FILE` | require every word to also appear in a familiarity list |
+| `--common-top N` | use only the first N entries of `--common` |
 | `-n, --limit N` | stop after N squares (`0` = unlimited, default 10) |
 | `--condition {a,b,either}` | which finishing order to require (default `either`) |
 | `--row N=WORD` | pin a row, e.g. `--row 3=ROBOT` (repeatable) |
@@ -129,6 +131,38 @@ Grid #3   --   either finish works (Row 2 first or Row 4 first)
 ```
 
 Without `--shuffle` the output is deterministic for a given lexicon.
+
+## Squares you could defend at the kitchen table
+
+A tournament word list will happily hand you `SOCKO`, `ASKOS` and `STOSS`.
+`--common` intersects the lexicon with a familiarity list — every row, every
+column and both 3-letter intermediates must appear in both — so what comes out
+is recognisable English:
+
+```bash
+curl -O https://raw.githubusercontent.com/first20hours/google-10000-english/master/20k.txt
+python3 double_word_square.py --common 20k.txt -n 5
+```
+
+```
+   A  W  A  R  D      Across : AWARD, THREE, LOOSE, ARMED, SEATS
+   T  H  R  E  E      Down   : ATLAS, WHORE, AROMA, RESET, DEEDS
+   L  O  O  S  E
+   A  R  M  E  D      Row 2 exposes WHO / RES, or Row 4 exposes ORE / SET
+   S  E  A  T  S      -- either finishing order is legal.
+```
+
+**There is a cliff, and it is steep.** Restricting a TWL list to the 20,000
+commonest English words leaves 1,973 five-letter words, and squares still
+exist — a few seconds per grid instead of milliseconds. Restrict it to the
+commonest 10,000 (1,199 five-letter words) and the search **exhausts with zero
+solutions** in under a second: not a timeout, a proof that none exist. The
+script warns when the filtered lexicon drops below about 1,500 five-letter
+words, because from there on an empty result says something about the
+dictionary rather than about the search.
+
+Any word-per-line file works; frequency-ordered lists let `--common-top N`
+tighten or loosen the filter.
 
 ## How it works
 

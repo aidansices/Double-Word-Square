@@ -227,6 +227,30 @@ def load_words(paths: Sequence[str], lengths: Iterable[int] = (3, 5),
     return buckets
 
 
+def load_common(path: str, top: Optional[int] = None) -> Set[str]:
+    """Read a familiarity list -- words an ordinary player would recognise.
+
+    Frequency lists are ordered commonest-first, so `top` simply takes the
+    first N entries of the file.  Entries are counted before the A-Z filter,
+    so "top 20000" means the file's first 20,000 lines whatever is in them.
+    A "word 12345" count column is fine; only the first token is read.
+    """
+    keep: Set[str] = set()
+    seen = 0
+    with open(path, "r", encoding="utf-8", errors="ignore") as fh:
+        for line in fh:
+            parts = line.split()
+            if not parts:
+                continue
+            seen += 1
+            if top is not None and seen > top:
+                break
+            word = parts[0]
+            if word.isascii() and word.isalpha():
+                keep.add(word.upper())
+    return keep
+
+
 def resolve_dictionaries(explicit: Sequence[str]) -> Tuple[List[str], bool]:
     """Return (paths, drop_capitalised).  Falls back to system dictionaries."""
     if explicit:
@@ -789,6 +813,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--dict3", metavar="FILE",
                     help="separate word list for the intermediate 3-letter words "
                          "(default: same as --dict).")
+    ap.add_argument("--common", metavar="FILE",
+                    help="familiarity list: every word in the square, and both "
+                         "3-letter intermediates, must appear here as well as in "
+                         "the Scrabble lexicon.  Trades yield for squares you "
+                         "could defend at the kitchen table.")
+    ap.add_argument("--common-top", type=int, default=None, metavar="N",
+                    help="use only the first N entries of --common (frequency "
+                         "lists are ordered commonest-first).")
     ap.add_argument("-n", "--limit", type=int, default=None, metavar="N",
                     help="stop after N squares (0 = no limit; default 10, or "
                          "no limit with --count-only).")
@@ -824,6 +856,25 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                          % (len(words5), len(words3)))
     print("Lexicon: %s  ->  %d five-letter words, %d three-letter words"
           % (", ".join(paths), len(words5), len(words3)), file=sys.stderr)
+
+    if args.common:
+        if not os.path.exists(args.common):
+            raise SystemExit("--common: file not found: " + args.common)
+        familiar = load_common(args.common, args.common_top)
+        words5 = {w for w in words5 if w in familiar}
+        words3 = {w for w in words3 if w in familiar}
+        print("Common-word filter (%s%s): %d five-letter words, "
+              "%d three-letter words remain"
+              % (args.common,
+                 ", top %d" % args.common_top if args.common_top else "",
+                 len(words5), len(words3)), file=sys.stderr)
+        if not words5 or not words3:
+            raise SystemExit("nothing left after the common-word filter -- "
+                             "raise --common-top or use a longer list.")
+        if len(words5) < 1500:
+            print("NOTE: below roughly 1500 five-letter words the squares run "
+                  "out entirely.\n      If this finds nothing, that is the "
+                  "lexicon, not the search.", file=sys.stderr)
 
     forced = dict(parse_row_spec(s) for s in args.row)
     # --count-only means "how many are there", so it counts them all unless the
